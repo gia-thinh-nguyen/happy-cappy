@@ -23,16 +23,25 @@ export default function Home() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [playingAudio, setPlayingAudio] = useState<string | null>(null);
+  const [audioCache, setAudioCache] = useState<Map<string, string>>(new Map());
+  const [audioLoading, setAudioLoading] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const playAudio = async (thaiText: string, audioId: string) => {
+  // Pre-load audio when translation is received
+  const preloadAudio = async (thaiText: string, audioId: string) => {
     try {
-      setPlayingAudio(audioId);
-      
+      // Check if already cached or currently loading
+      if (audioCache.has(audioId) || audioLoading.has(audioId)) {
+        return;
+      }
+
+      // Mark as loading
+      setAudioLoading(prev => new Set(prev).add(audioId));
+
       const response = await fetch('/api/tts', {
         method: 'POST',
         headers: {
@@ -47,16 +56,46 @@ export default function Home() {
 
       const audioBlob = await response.blob();
       const audioUrl = URL.createObjectURL(audioBlob);
-      const audio = new Audio(audioUrl);
+      
+      // Cache the audio URL
+      setAudioCache(prev => new Map(prev).set(audioId, audioUrl));
+      
+      // Remove from loading set
+      setAudioLoading(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(audioId);
+        return newSet;
+      });
+    } catch (error) {
+      console.error('Audio preload error:', error);
+      // Remove from loading set even on error
+      setAudioLoading(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(audioId);
+        return newSet;
+      });
+    }
+  };
+
+  // Play cached audio instantly
+  const playAudio = async (audioId: string) => {
+    try {
+      const cachedAudioUrl = audioCache.get(audioId);
+      
+      if (!cachedAudioUrl) {
+        console.error('Audio not cached for', audioId);
+        return;
+      }
+
+      setPlayingAudio(audioId);
+      const audio = new Audio(cachedAudioUrl);
       
       audio.onended = () => {
         setPlayingAudio(null);
-        URL.revokeObjectURL(audioUrl);
       };
       
       audio.onerror = () => {
         setPlayingAudio(null);
-        URL.revokeObjectURL(audioUrl);
       };
 
       await audio.play();
@@ -69,6 +108,13 @@ export default function Home() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Cleanup audio URLs when component unmounts
+  useEffect(() => {
+    return () => {
+      audioCache.forEach(url => URL.revokeObjectURL(url));
+    };
+  }, [audioCache]);
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
@@ -112,6 +158,12 @@ export default function Home() {
       };
 
       setMessages(prev => [...prev, assistantMessage]);
+
+      // Pre-load audio immediately after adding the message
+      if (translation.breakdown && translation.breakdown.length > 0) {
+        const allThaiText = translation.breakdown.map((item: {word: string; thai: string; pronunciation: string; meaning: string}) => item.thai).join(' ');
+        preloadAudio(allThaiText, assistantMessage.id);
+      }
     } catch (error) {
       console.error('Translation error:', error);
       
@@ -195,15 +247,16 @@ export default function Home() {
                           {/* Play button - bottom right */}
                           <div className="flex justify-end mt-2">
                             <button
-                              onClick={() => {
-                                const allThaiText = message.translation?.breakdown?.map(item => item.thai).join(' ') || '';
-                                playAudio(allThaiText, message.id);
-                              }}
-                              disabled={playingAudio === message.id}
+                              onClick={() => playAudio(message.id)}
+                              disabled={playingAudio === message.id || audioLoading.has(message.id)}
                               className="flex items-center justify-center p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-full transition-colors duration-200 disabled:opacity-50"
-                              title="Play Thai pronunciation"
+                              title={audioLoading.has(message.id) ? "Loading audio..." : "Play Thai pronunciation"}
                             >
-                              {playingAudio === message.id ? (
+                              {audioLoading.has(message.id) ? (
+                                <svg className="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a7.646 7.646 0 100 15.292V12"/>
+                                </svg>
+                              ) : playingAudio === message.id ? (
                                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                                   <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
                                   <animateTransform attributeName="transform" attributeType="XML" type="scale" values="1;1.1;1" dur="0.6s" repeatCount="indefinite"/>
@@ -250,8 +303,7 @@ export default function Home() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Type English text to translate..."
-              className="w-full resize-none border border-gray-300 rounded-2xl px-4 py-2 pr-12 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent max-h-32 min-h-[40px] text-sm"
+              className="w-full resize-none border border-gray-300 rounded-2xl px-4 py-2 pr-12 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent max-h-32 min-h-[40px] text-sm text-gray-900 placeholder-gray-500"
               rows={1}
               style={{
                 height: 'auto',

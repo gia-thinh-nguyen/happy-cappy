@@ -16,7 +16,7 @@ export async function POST(request) {
     }
 
     const mp3 = await openai.audio.speech.create({
-      model: "tts-1",
+      model: "tts-1-hd", // Higher quality model
       voice: "onyx", // Male voice - deep and clear
       input: text,
     });
