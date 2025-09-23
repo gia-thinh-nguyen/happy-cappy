@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import Image from 'next/image';
 
 interface Message {
   id: string;
@@ -109,7 +110,7 @@ export default function Home() {
     <div className="flex flex-col h-screen bg-gray-50 max-w-md mx-auto lg:max-w-4xl">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-center shadow-sm">
-        <h1 className="text-lg font-semibold text-gray-800">Thai Translator</h1>
+        <Image src="/cappy.png" alt="Cappy" width={50} height={32} className="w-auto" />
       </div>
 
       {/* Messages */}
