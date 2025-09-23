@@ -11,6 +11,7 @@ interface Message {
     original: string;
     breakdown?: Array<{
       word: string;
+      thai: string;
       pronunciation: string;
       meaning: string;
     }>;
@@ -21,10 +22,48 @@ export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [playingAudio, setPlayingAudio] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const playAudio = async (thaiText: string, audioId: string) => {
+    try {
+      setPlayingAudio(audioId);
+      
+      const response = await fetch('/api/tts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text: thaiText }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate audio');
+      }
+
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+      
+      audio.onended = () => {
+        setPlayingAudio(null);
+        URL.revokeObjectURL(audioUrl);
+      };
+      
+      audio.onerror = () => {
+        setPlayingAudio(null);
+        URL.revokeObjectURL(audioUrl);
+      };
+
+      await audio.play();
+    } catch (error) {
+      console.error('Audio playback error:', error);
+      setPlayingAudio(null);
+    }
   };
 
   useEffect(() => {
@@ -132,25 +171,51 @@ export default function Home() {
               ) : (
                 <>
                   {message.translation ? (
-                    <div className="space-y-1">
+                    <div className="space-y-1 relative">
                       {/* Alternating pronunciation and breakdown */}
                       {message.translation.breakdown && message.translation.breakdown.length > 0 && (
-                        message.translation.breakdown.map((item, index) => (
-                          <div key={index}>
-                            {/* Pronunciation line */}
-                            <div className="text-center p-2 bg-blue-50 rounded-lg mb-1">
-                              <div className="text-base font-medium text-blue-800 leading-relaxed break-words">
-                                {item.pronunciation}
+                        <>
+                          {message.translation.breakdown.map((item, index) => (
+                            <div key={index}>
+                              {/* Pronunciation line */}
+                              <div className="text-center p-2 bg-blue-50 rounded-lg mb-1">
+                                <div className="text-base font-medium text-blue-800 leading-relaxed break-words">
+                                  {item.pronunciation}
+                                </div>
+                              </div>
+                              {/* Breakdown line */}
+                              <div className="text-center p-2 bg-gray-50 rounded-lg mb-2">
+                                <div className="text-sm text-gray-700 leading-relaxed break-words">
+                                  <span className="font-medium text-gray-800">{item.word}</span> - {item.meaning}
+                                </div>
                               </div>
                             </div>
-                            {/* Breakdown line */}
-                            <div className="text-center p-2 bg-gray-50 rounded-lg mb-2">
-                              <div className="text-sm text-gray-700 leading-relaxed break-words">
-                                <span className="font-medium text-gray-800">{item.word}</span> - {item.meaning}
-                              </div>
-                            </div>
+                          ))}
+                          
+                          {/* Play button - bottom right */}
+                          <div className="flex justify-end mt-2">
+                            <button
+                              onClick={() => {
+                                const allThaiText = message.translation?.breakdown?.map(item => item.thai).join(' ') || '';
+                                playAudio(allThaiText, message.id);
+                              }}
+                              disabled={playingAudio === message.id}
+                              className="flex items-center justify-center p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-full transition-colors duration-200 disabled:opacity-50"
+                              title="Play Thai pronunciation"
+                            >
+                              {playingAudio === message.id ? (
+                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                  <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+                                  <animateTransform attributeName="transform" attributeType="XML" type="scale" values="1;1.1;1" dur="0.6s" repeatCount="indefinite"/>
+                                </svg>
+                              ) : (
+                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                  <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+                                </svg>
+                              )}
+                            </button>
                           </div>
-                        ))
+                        </>
                       )}
                     </div>
                   ) : (

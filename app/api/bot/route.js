@@ -22,8 +22,8 @@ export async function POST(request) {
 {
   "original": "original English text",
   "breakdown": [
-    {"word": "English word", "pronunciation": "Vietnamese", "meaning": "meaning"},
-    {"word": "English word", "pronunciation": "Vietnamese", "meaning": "meaning"}
+    {"word": "English word", "thai": "Thai text", "pronunciation": "Vietnamese", "meaning": "meaning"},
+    {"word": "English word", "thai": "Thai text", "pronunciation": "Vietnamese", "meaning": "meaning"}
   ]
 }
 
@@ -32,7 +32,7 @@ Input: "Hello"
 Output: {
   "original": "Hello",
   "breakdown": [
-    {"word": "Hello", "pronunciation": "sà-wàt-dii", "meaning": "hello"}
+    {"word": "Hello", "thai": "สวัสดี", "pronunciation": "sà-wàt-dii", "meaning": "hello"}
   ]
 }
 
@@ -40,11 +40,11 @@ Input: "Hello, how are you?"
 Output: {
   "original": "Hello, how are you?",
   "breakdown": [
-    {"word": "Hello", "pronunciation": "sà-wàt-dii", "meaning": "hello"},
-    {"word": "how", "pronunciation": "yàng-rai", "meaning": "how/what way"},
-    {"word": "are", "pronunciation": "pen", "meaning": "to be"},
-    {"word": "you", "pronunciation": "khun", "meaning": "you (polite)"},
-    {"word": "(male polite)", "pronunciation": "khráp", "meaning": "male politeness particle"}
+    {"word": "Hello", "thai": "สวัสดี", "pronunciation": "sà-wàt-dii", "meaning": "hello"},
+    {"word": "how", "thai": "อย่างไร", "pronunciation": "yàng-rai", "meaning": "how/what way"},
+    {"word": "are", "thai": "เป็น", "pronunciation": "pen", "meaning": "to be"},
+    {"word": "you", "thai": "คุณ", "pronunciation": "khun", "meaning": "you (polite)"},
+    {"word": "(male polite)", "thai": "ครับ", "pronunciation": "khráp", "meaning": "male politeness particle"}
   ]
 }
 
