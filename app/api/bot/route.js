@@ -19,21 +19,23 @@ export async function POST(request) {
 3. Give word-by-word breakdown
 4. Return response in this exact JSON format (RESPOND ONLY WITH VALID JSON, NO OTHER TEXT):
 
-For single words: {
+{
   "original": "original English text",
-  "pronunciation": "Vietnamese pronunciation",
-  "meaning": "English meaning"
-}
-
-For sentences: {
-  "original": "original English sentence",
   "breakdown": [
     {"word": "English word", "pronunciation": "Vietnamese", "meaning": "meaning"},
     {"word": "English word", "pronunciation": "Vietnamese", "meaning": "meaning"}
   ]
 }
 
-Example for sentence:
+Examples:
+Input: "Hello"
+Output: {
+  "original": "Hello",
+  "breakdown": [
+    {"word": "Hello", "pronunciation": "sà-wàt-dii", "meaning": "hello"}
+  ]
+}
+
 Input: "Hello, how are you?"
 Output: {
   "original": "Hello, how are you?",
