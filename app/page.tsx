@@ -8,10 +8,9 @@ interface Message {
   type: 'user' | 'assistant';
   content: string;
   translation?: {
-    original: string;
+    fullTranslation: string;
+    fullPronunciation: string;
     breakdown?: Array<{
-      word: string;
-      thai: string;
       pronunciation: string;
       meaning: string;
     }>;
@@ -25,6 +24,7 @@ export default function Home() {
   const [playingAudio, setPlayingAudio] = useState<string | null>(null);
   const [audioCache, setAudioCache] = useState<Map<string, string>>(new Map());
   const [audioLoading, setAudioLoading] = useState<Set<string>>(new Set());
+  const [politenessMode, setPolitenessMode] = useState<'casual' | 'polite'>('casual');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -38,6 +38,11 @@ export default function Home() {
       if (audioCache.has(audioId) || audioLoading.has(audioId)) {
         return;
       }
+
+      // Debug: Log what text is being sent to TTS
+      console.log('TTS Debug - Sending text to TTS:', thaiText);
+      console.log('TTS Debug - Text length:', thaiText.length);
+      console.log('TTS Debug - Audio ID:', audioId);
 
       // Mark as loading
       setAudioLoading(prev => new Set(prev).add(audioId));
@@ -135,7 +140,7 @@ export default function Home() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message: input.trim() }),
+        body: JSON.stringify({ message: input.trim(), politenessMode }),
       });
 
       if (!response.ok) {
@@ -160,9 +165,8 @@ export default function Home() {
       setMessages(prev => [...prev, assistantMessage]);
 
       // Pre-load audio immediately after adding the message
-      if (translation.breakdown && translation.breakdown.length > 0) {
-        const allThaiText = translation.breakdown.map((item: {word: string; thai: string; pronunciation: string; meaning: string}) => item.thai).join(' ');
-        preloadAudio(allThaiText, assistantMessage.id);
+      if (translation.fullTranslation) {
+        preloadAudio(translation.fullTranslation, assistantMessage.id);
       }
     } catch (error) {
       console.error('Translation error:', error);
@@ -200,8 +204,25 @@ export default function Home() {
   return (
     <div className="flex flex-col h-screen bg-gray-50 max-w-md mx-auto lg:max-w-4xl">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-center shadow-sm">
+      <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shadow-sm">
+        <div className="flex-1"></div>
         <Image src="/cappy.png" alt="Cappy" width={50} height={32} className="w-auto" />
+        <div className="flex-1 flex justify-end">
+          <div className="flex items-center space-x-2">
+            <span className="text-xs text-gray-600 font-medium">Mode:</span>
+            <button
+              onClick={() => setPolitenessMode(politenessMode === 'casual' ? 'polite' : 'casual')}
+              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors duration-200 ${
+                politenessMode === 'casual'
+                  ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                  : 'bg-green-100 text-green-800 border border-green-200'
+              }`}
+              title={politenessMode === 'casual' ? 'Switch to polite mode (for older people/formal situations)' : 'Switch to casual mode (for friends/peers)'}
+            >
+              {politenessMode === 'casual' ? '😊 Casual' : '🙏 Polite'}
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Messages */}
@@ -223,22 +244,30 @@ export default function Home() {
               ) : (
                 <>
                   {message.translation ? (
-                    <div className="space-y-1 relative">
-                      {/* Alternating pronunciation and breakdown */}
+                    <div className="space-y-3 relative">
+                      {/* Full Translation Display */}
+                      <div className="text-center p-3 bg-green-50 rounded-lg border border-green-200">
+                        <div className="text-lg font-semibold text-green-800 mb-1 leading-relaxed break-words">
+                          {message.translation.fullTranslation}
+                        </div>
+                        <div className="text-sm text-green-600 leading-relaxed break-words">
+                          {message.translation.fullPronunciation}
+                        </div>
+                      </div>
+
+                      {/* Word-by-word breakdown */}
                       {message.translation.breakdown && message.translation.breakdown.length > 0 && (
                         <>
+                          <div className="text-xs text-gray-500 text-center font-medium">Pronunciation breakdown:</div>
                           {message.translation.breakdown.map((item, index) => (
-                            <div key={index}>
-                              {/* Pronunciation line */}
-                              <div className="text-center p-2 bg-blue-50 rounded-lg mb-1">
-                                <div className="text-base font-medium text-blue-800 leading-relaxed break-words">
+                            <div key={index} className="mb-2">
+                              {/* Combined pronunciation and meaning */}
+                              <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                <div className="text-lg font-semibold text-blue-900 mb-1 leading-relaxed break-words">
                                   {item.pronunciation}
                                 </div>
-                              </div>
-                              {/* Breakdown line */}
-                              <div className="text-center p-2 bg-gray-50 rounded-lg mb-2">
                                 <div className="text-sm text-gray-700 leading-relaxed break-words">
-                                  <span className="font-medium text-gray-800">{item.word}</span> - {item.meaning}
+                                  {item.meaning}
                                 </div>
                               </div>
                             </div>

@@ -15,10 +15,25 @@ export async function POST(request) {
       );
     }
 
+    // Debug logging
+    console.log('TTS API - Received text:', text);
+    console.log('TTS API - Text type:', typeof text);
+    console.log('TTS API - Text length:', text.length);
+    
+    // Check if text contains Thai characters
+    const hasThaiChars = /[\u0E00-\u0E7F]/.test(text);
+    console.log('TTS API - Contains Thai characters:', hasThaiChars);
+    
+    // If no Thai characters, this might be pronunciation text being sent by mistake
+    if (!hasThaiChars) {
+      console.warn('TTS API - WARNING: Text does not contain Thai characters, might be pronunciation text');
+    }
+
     const mp3 = await openai.audio.speech.create({
-      model: "tts-1-hd", // Higher quality model
+      model: "tts-1", // Higher quality model
       voice: "onyx", // Male voice - deep and clear
       input: text,
+      speed: 0.85, // Slightly slower for better pronunciation
     });
 
     const buffer = Buffer.from(await mp3.arrayBuffer());
